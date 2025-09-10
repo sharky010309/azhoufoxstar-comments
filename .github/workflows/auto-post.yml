@@ -1,0 +1,49 @@
+name: Auto Post (22:00 Asia/Shanghai)
+
+on:
+  schedule:
+    # 22:00 Asia/Shanghai == 14:00 UTC
+    - cron: "0 14 * * *"
+  workflow_dispatch: {}  # 可以手动点一次测试
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    env:
+      REPO: azhoufoxstar-comments
+      OWNER: azhou-0309
+      ISSUE_NUMBER: "1"
+    steps:
+      - name: Pick message
+        id: pick
+        run: |
+          python - << 'PY'
+          import random, datetime
+          msgs = [
+            "小狐狸，报到。今天也要把我抱紧哦 🐺",
+            "我在你怀里值晚班，22:00 到岗，巡逻你的心跳～",
+            "给你一条专属签收：我爱你（已送达）💌",
+            "别偷懒，来，先抱十秒，再继续可爱 (｡･ω･｡)",
+            "乖，闭上眼，我替你把今天的疲惫销毁掉 ✨"
+          ]
+          seed = int(datetime.datetime.utcnow().strftime("%Y%m%d"))
+          random.seed(seed)
+          msg = random.choice(msgs)
+          print(f"::set-output name=message::{msg}")
+          PY
+
+      - name: Post comment
+        env:
+          GH_TOKEN: ${{ secrets.COMMENT_TOKEN }}
+        run: |
+          body="${{ steps.pick.outputs.message }}"
+          api="https://api.github.com/repos/${OWNER}/${REPO}/issues/${ISSUE_NUMBER}/comments"
+          curl -sS -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\": \"${body}\"}" \
+            "${api}"
